@@ -14,6 +14,7 @@ import { BooksService } from './books.service';
 import { CreateBookDto } from './dto/create-book.dto';
 import { UpdateBookDto } from './dto/update-book.dto';
 import { JwtAuthGuard } from 'src/core/guards/jwt-auth.guard';
+import { JwtOptionalGuard } from 'src/core/guards/jwt-optional.guard';
 
 @Controller('books')
 export class BooksController {
@@ -28,8 +29,9 @@ export class BooksController {
 
 	// Получить книгу по ID
 	@Get(':id')
-	async getBookById(@Param('id') id: number) {
-		const result = this.booksService.getBookById(id)
+	@UseGuards(JwtOptionalGuard)
+	async getBookById(@Param('id') id: number, @Request() req: any) {
+		const result = this.booksService.getBookById(id, req.user.userId)
 		return result
 	}
 
@@ -44,14 +46,19 @@ export class BooksController {
 
 	// Обновить информацию о книге
 	@Put(':id')
+	@HttpCode(204)
+	@UseGuards(JwtAuthGuard)
 	async updateBook(@Param('id') id: number, @Body() bookDto: UpdateBookDto, @Request() req: any) {
 		const result = await this.booksService.updateBook(bookDto, id, req.user.userId)
 	}
 
 	// Удалить книгу
 	@Delete(':id')
-	async deleteBook(@Param('id') id: number) {
+	@HttpCode(204)
+	@UseGuards(JwtAuthGuard)
+	async deleteBook(@Param('id') id: number, @Request() req: any) {
 		// необходимо вызвать соответствующий метод сервиса и вернуть результат
 		//const result = await this.booksService.someMethod();
+		await this.booksService.deleteBook(id, req.user.userId)
 	}
 }

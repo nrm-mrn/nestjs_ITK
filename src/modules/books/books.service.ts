@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { BooksRepository } from './books.repository';
 import { Book } from './books.entity';
 import { UsersRepository } from '../users/users.repository';
@@ -17,8 +17,19 @@ export class BooksService {
 	}
 
 	// Получить книгу по ID
-	async getBookById(id: number): Promise<Book> {
-		return this.booksRepository.findOneOrNotFoundFail(id);
+	async getBookById(id: number, userId: number): Promise<Book> {
+		const book: Book = await this.booksRepository.findOneOrNotFoundFail(id);
+		if (!userId) {
+			if (book.ageRestriction >= 18) {
+				throw new UnauthorizedException('18+ books only for registered users')
+			}
+			return book
+		}
+		const user: User = await this.userRepository.findByIdOrNotFoundFail(userId)
+		if (user.age < 18 && book.ageRestriction >= 18) {
+			throw new ForbiddenException('Age is restricted')
+		}
+		return book
 	}
 
 	// Создать новую книгу
@@ -33,5 +44,13 @@ export class BooksService {
 	async updateBook(dto: UpdateBookDto, bookId: number, userId: number): Promise<void> {
 		const book: Book = await this.booksRepository.findOneOrNotFoundFail(bookId)
 		book.updateBook(dto, userId)
+	}
+
+	async deleteBook(bookId: number, userId: number): Promise<void> {
+		const book: Book = await this.booksRepository.findOneOrNotFoundFail(bookId)
+		if (book.ownerId !== userId) {
+			throw new ForbiddenException('Only the owner can delete a book')
+		}
+		await this.booksRepository.remove(bookId)
 	}
 }
